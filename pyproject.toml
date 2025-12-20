@@ -1,0 +1,19 @@
+[project]
+name = "company-structure"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "django>=4.2,<4.3",
+    "django-mptt>=0.18.0",
+    "djangorestframework>=3.16.1",
+    "mysqlclient>=2.2.7",
+    "python-dotenv>=1.2.1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+    "pytest-django>=4.11.1",
+    "ruff>=0.14.10",
+]

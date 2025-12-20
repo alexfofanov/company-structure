@@ -1,0 +1,81 @@
+line-length = 88
+indent-width = 4
+target-version = "py312"
+
+src = []
+
+exclude = [
+    "**/migrations/**",
+    "**/tests/**",
+    "**/conftest.py",
+    "**/__pycache__/**",
+]
+
+[format]
+quote-style = "single"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+docstring-code-format = false
+docstring-code-line-length = "dynamic"
+
+[lint]
+extend-select = [
+    "Q",
+    "I",
+    "ANN",
+    "FAST",
+    "T20",
+    "A",
+    "B",
+    "C4",
+    "ARG",
+    "N",
+    "DJ",
+]
+
+ignore = [
+    "ANN201",
+    "DJ001",
+    "ANN003",
+    "ANN002",
+    "ARG002",
+    "ANN401",
+]
+
+[lint.mccabe]
+max-complexity = 5
+
+[lint.flake8-quotes]
+docstring-quotes = "double"
+inline-quotes = "single"
+multiline-quotes = "double"
+
+[lint.isort]
+force-wrap-aliases = false
+split-on-trailing-comma = false
+combine-as-imports = true
+section-order = [
+    "future",
+    "standard-library",
+    "django",
+    "rest-framework",
+    "third-party",
+    "first-party",
+    "local-folder",
+]
+
+[lint.isort.sections]
+"django" = [
+    "django",
+    "django.conf",
+    "django.urls",
+    "django.db",
+    "django.contrib",
+]
+"rest-framework" = [
+    "rest_framework",
+    "rest_framework.decorators",
+    "rest_framework.serializers",
+    "rest_framework.viewsets",
+]
