@@ -32,7 +32,9 @@ class DepartmentAdmin(DraggableMPTTAdmin):
         count = obj.employees_count
         if count > 0:
             url = f'/admin/staff/employee/?department__id__exact={obj.id}'
-            return format_html('<a href="{}" title="Показать сотрудников">{} чел.</a>', url, count)
+            return format_html(
+                '<a href="{}" title="Показать сотрудников">{} чел.</a>', url, count
+            )
         return '—'
 
 
@@ -45,7 +47,7 @@ class EmployeeAdmin(admin.ModelAdmin):
         'position',
         'department_link',
         'salary_fmt',
-        'hire_date'
+        'hire_date',
     )
 
     list_filter = (
@@ -59,12 +61,13 @@ class EmployeeAdmin(admin.ModelAdmin):
     list_per_page = 25
 
     fieldsets = (
-        ('Основная информация', {
-            'fields': ('full_name', 'position', 'department')
-        }),
-        ('Финансы и даты', {
-            'fields': ('salary', 'hire_date'),
-        }),
+        ('Основная информация', {'fields': ('full_name', 'position', 'department')}),
+        (
+            'Финансы и даты',
+            {
+                'fields': ('salary', 'hire_date'),
+            },
+        ),
     )
 
     @admin.display(description='Подразделение', ordering='department')

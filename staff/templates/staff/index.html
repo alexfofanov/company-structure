@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Структура компании</title>
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome для иконок -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        body { background-color: #f8f9fa; }
+        .tree-card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            padding: 20px;
+        }
+
+        /* Стили для строк дерева */
+        .dept-row {
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 4px;
+            transition: background 0.2s;
+            user-select: none; /* Чтобы текст не выделялся при быстрых кликах */
+        }
+        .dept-row:hover {
+            background-color: #e9ecef;
+        }
+
+        /* Контейнер для вложенных элементов */
+        .nested-container {
+            display: none; /* Скрыто по умолчанию */
+            margin-left: 24px;
+            border-left: 1px solid #dee2e6;
+            padding-left: 10px;
+        }
+
+        /* Иконки */
+        .toggle-icon {
+            width: 20px;
+            text-align: center;
+            margin-right: 8px;
+            transition: transform 0.2s;
+        }
+
+        /* Лоадер */
+        .loading-spinner {
+            color: #6c757d;
+            font-size: 0.9em;
+            padding: 5px 0 5px 20px;
+        }
+
+        /* Таблица сотрудников */
+        .employee-table {
+            font-size: 0.9rem;
+            margin-top: 10px;
+            background-color: #fff;
+        }
+        .employee-table th { background-color: #f1f3f5; }
+    </style>
+</head>
+<body>
+
+<!-- Верхняя навигация -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+    <div class="container">
+        <a class="navbar-brand" href="#">MyCompany Staff</a>
+        <div class="d-flex text-light align-items-center">
+            {% if user.is_authenticated %}
+                <span class="me-3"><i class="fas fa-user me-1"></i> {{ user.username }}</span>
+                <a href="{% url 'admin:logout' %}?next={% url 'index' %}" class="btn btn-outline-light btn-sm">Выйти</a>
+            {% else %}
+                <a href="{% url 'admin:login' %}?next={{ request.path }}" class="btn btn-primary btn-sm">Войти</a>
+            {% endif %}
+        </div>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+
+            <h2 class="mb-4 text-center text-secondary">Организационная структура</h2>
+
+            {% if user.is_authenticated %}
+                <div class="tree-card">
+                    <div id="tree-root">
+                        <!-- Рендеринг корневых узлов (Django Template) -->
+                        {% for node in roots %}
+                            <div class="node-wrapper" data-id="{{ node.id }}" data-loaded="false">
+                                <div class="dept-row d-flex align-items-center">
+                                    <!-- Иконка плюса -->
+                                    <i class="fas fa-plus-square toggle-icon text-primary"></i>
+                                    <span class="fw-bold text-dark">{{ node.name }}</span>
+                                </div>
+                                <!-- Контейнер для загрузки AJAX контента -->
+                                <div class="nested-container"></div>
+                            </div>
+                        {% empty %}
+                            <div class="alert alert-info">Подразделения не найдены. Запустите <code>seed_db</code>.</div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% else %}
+                <div class="alert alert-warning text-center">
+                    <h4>Доступ запрещен</h4>
+                    <p>Пожалуйста, авторизуйтесь для просмотра данных о сотрудниках.</p>
+                    <a href="{% url 'admin:login' %}?next={{ request.path }}" class="btn btn-warning">Перейти к входу</a>
+                </div>
+            {% endif %}
+
+        </div>
+    </div>
+</div>
+
+<!-- JAVASCRIPT LOGIC -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+
+        const treeRoot = document.getElementById('tree-root');
+        if (!treeRoot) return; // Если пользователь не залогинен, элемента нет
+
+        // Делегирование событий (один слушатель на всё дерево)
+        treeRoot.addEventListener('click', function(e) {
+            // Ищем клик именно по строке департамента
+            const row = e.target.closest('.dept-row');
+            if (!row) return;
+
+            const wrapper = row.parentElement;
+            const container = wrapper.querySelector('.nested-container');
+            const icon = row.querySelector('.toggle-icon');
+            const deptId = wrapper.dataset.id;
+            const isLoaded = wrapper.dataset.loaded === 'true';
+
+            // 1. Логика сворачивания (если уже открыто)
+            if (container.style.display === 'block') {
+                container.style.display = 'none';
+                icon.classList.remove('fa-minus-square');
+                icon.classList.add('fa-plus-square');
+                return;
+            }
+
+            // 2. Логика разворачивания
+            container.style.display = 'block';
+            icon.classList.remove('fa-plus-square');
+            icon.classList.add('fa-minus-square');
+
+            // Если данные уже были загружены ранее, не делаем запрос снова
+            if (isLoaded) return;
+
+            // 3. Показываем лоадер
+            container.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin me-2"></i>Загрузка данных...</div>';
+
+            // 4. AJAX запрос (FETCH)
+            fetch(`/staff/api/node-data/?id=${deptId}`, {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest', // Хороший тон для AJAX
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => {
+                // БАЗОВАЯ ЗАЩИТА: Проверка статуса ответа
+                if (response.status === 403 || response.status === 401) {
+                    alert('Ваша сессия истекла. Пожалуйста, войдите снова.');
+                    // Перенаправляем на страницу логина
+                    window.location.href = "{% url 'admin:login' %}?next={{ request.path }}";
+                    throw new Error("Authentication required");
+                }
+                if (!response.ok) {
+                    throw new Error("Network response was not ok");
+                }
+                return response.json();
+            })
+            .then(data => {
+                let htmlContent = '';
+
+                // --- А. Секция сотрудников ---
+                if (data.employees && data.employees.length > 0) {
+                    htmlContent += `
+                        <div class="mt-2 mb-3 pe-3">
+                            <table class="table table-sm table-bordered table-hover employee-table">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 30%">ФИО</th>
+                                        <th style="width: 30%">Должность</th>
+                                        <th style="width: 20%">Зарплата</th>
+                                        <th style="width: 20%">Дата приема</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${data.employees.map(emp => {
+                                        // Форматирование зарплаты (если она пришла)
+                                        let salaryDisplay = '<span class="text-muted">Скрыто</span>';
+                                        if (emp.salary !== undefined && emp.salary !== null) {
+                                            // 150000 -> 150 000 ₽
+                                            salaryDisplay = parseFloat(emp.salary).toLocaleString('ru-RU') + ' ₽';
+                                        }
+
+                                        return `
+                                        <tr>
+                                            <td>${emp.full_name}</td>
+                                            <td>${emp.position}</td>
+                                            <td class="text-end">${salaryDisplay}</td>
+                                            <td>${emp.hire_date}</td>
+                                        </tr>`;
+                                    }).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                } else {
+                    htmlContent += '<div class="text-muted small mb-2 fst-italic ms-2">Сотрудников нет</div>';
+                }
+
+                // --- Б. Секция дочерних отделов ---
+                if (data.children && data.children.length > 0) {
+                    data.children.forEach(child => {
+                        // Определяем, какую иконку рисовать (есть дети или нет)
+                        // Если вы используете DRF и поле has_children
+                        const hasChildren = child.has_children;
+
+                        // Если детей нет вообще, рисуем точку или пустой квадрат
+                        const iconClass = hasChildren ? 'fa-plus-square text-primary' : 'fa-square text-secondary opacity-50';
+
+                        htmlContent += `
+                            <div class="node-wrapper" data-id="${child.id}" data-loaded="false">
+                                <div class="dept-row d-flex align-items-center">
+                                    <i class="fas ${iconClass} toggle-icon"></i>
+                                    <span class="fw-bold">${child.name}</span>
+                                </div>
+                                <div class="nested-container"></div>
+                            </div>
+                        `;
+                    });
+                }
+
+                container.innerHTML = htmlContent;
+                wrapper.dataset.loaded = 'true'; // Помечаем как загруженное
+            })
+            .catch(error => {
+                if (error.message !== "Authentication required") {
+                    console.error('Error:', error);
+                    container.innerHTML = '<div class="text-danger small ms-3">Ошибка загрузки данных.</div>';
+                }
+            });
+        });
+    });
+</script>
+
+</body>
+</html>
