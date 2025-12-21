@@ -1,0 +1,40 @@
+services:
+  mariadb:
+    image: mariadb:11
+    expose:
+      - 3306
+    env_file:
+      - .env
+    ports:
+      - "3306:3306"
+    volumes:
+      - mariadb-company-structure-data:/var/lib/mysql
+      - ./init_test_rights.sh:/docker-entrypoint-initdb.d/init_test_rights.sh
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD-SHELL", "mariadb-admin ping -h localhost -u root -p$MARIADB_ROOT_PASSWORD || exit 1" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  django:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - 8000:8000
+    env_file:
+        - .env
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    command: >
+      sh -c "
+        uv run python manage.py migrate &&
+        uv run python manage.py seed_db &&
+        uv run python manage.py runserver 0.0.0.0:8000
+      "
+
+volumes:
+  mariadb-company-structure-data:
