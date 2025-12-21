@@ -1,5 +1,5 @@
 from django.contrib import admin
-from django.db.models import Count, QuerySet
+from django.db.models import Count, IntegerField, OuterRef, QuerySet, Subquery
 from django.http import HttpRequest
 from django.utils.html import format_html
 
@@ -10,30 +10,43 @@ from .models import Department, Employee
 
 @admin.register(Department)
 class DepartmentAdmin(DraggableMPTTAdmin):
-    """Админка для подразделений"""
-
     mptt_indent_field = 'name'
     list_display = (
         'tree_actions',
         'indented_title',
         'employee_count_display',
+        'id',
     )
     list_display_links = ('indented_title',)
     search_fields = ('name',)
 
     def get_queryset(self, request: HttpRequest) -> QuerySet:
         qs = super().get_queryset(request)
-        return qs.annotate(employees_count=Count('employees'))
+        employees_count_subquery = Subquery(
+            Employee.objects.filter(
+                department__tree_id=OuterRef('tree_id'),
+                department__lft__gte=OuterRef('lft'),
+                department__rght__lte=OuterRef('rght'),
+            )
+            .values('department__tree_id')
+            .annotate(cnt=Count('id'))
+            .values('cnt')[:1],
+            output_field=IntegerField(),
+        )
+        return qs.annotate(employees_cumulative_count=employees_count_subquery)
 
-    @admin.display(description='Сотрудников', ordering='employees_count')
+    @admin.display(description='Сотр. (всего)', ordering='employees_cumulative_count')
     def employee_count_display(self, obj: Department) -> str:
-        """Показывает количество сотрудников и ссылку на них"""
+        """Отображение количества сотрудников"""
 
-        count = obj.employees_count
+        count = obj.employees_cumulative_count or 0
+
         if count > 0:
             url = f'/admin/staff/employee/?department__id__exact={obj.id}'
             return format_html(
-                '<a href="{}" title="Показать сотрудников">{} чел.</a>', url, count
+                '<a href="{url}" title="Показать сотрудников" style="font-weight: bold;">{count}</a>',
+                url=url,
+                count=count,
             )
         return '—'
 
