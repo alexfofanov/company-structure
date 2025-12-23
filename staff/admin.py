@@ -1,6 +1,8 @@
 from django.contrib import admin
-from django.db.models import Count, IntegerField, OuterRef, QuerySet, Subquery
+from django.db.models import QuerySet
+from django.db.models.expressions import RawSQL
 from django.http import HttpRequest
+from django.urls import reverse
 from django.utils.html import format_html
 
 from mptt.admin import DraggableMPTTAdmin, TreeRelatedFieldListFilter
@@ -22,33 +24,27 @@ class DepartmentAdmin(DraggableMPTTAdmin):
 
     def get_queryset(self, request: HttpRequest) -> QuerySet:
         qs = super().get_queryset(request)
-        employees_count_subquery = Subquery(
-            Employee.objects.filter(
-                department__tree_id=OuterRef('tree_id'),
-                department__lft__gte=OuterRef('lft'),
-                department__rght__lte=OuterRef('rght'),
+        qs = qs.annotate(
+            employees_cumulative_count=RawSQL(
+                """
+                SELECT COUNT(e.id)
+                FROM staff_employee e
+                         JOIN staff_department d ON e.department_id = d.id
+                WHERE d.tree_id = staff_department.tree_id
+                  AND d.lft >= staff_department.lft
+                  AND d.rght <= staff_department.rght
+                """,
+                [],
             )
-            .values('department__tree_id')
-            .annotate(cnt=Count('id'))
-            .values('cnt')[:1],
-            output_field=IntegerField(),
         )
-        return qs.annotate(employees_cumulative_count=employees_count_subquery)
+        return qs
 
     @admin.display(description='Сотр. (всего)', ordering='employees_cumulative_count')
     def employee_count_display(self, obj: Department) -> str:
         """Отображение количества сотрудников"""
 
         count = obj.employees_cumulative_count or 0
-
-        if count > 0:
-            url = f'/admin/staff/employee/?department__id__exact={obj.id}'
-            return format_html(
-                '<a href="{url}" title="Показать сотрудников" style="font-weight: bold;">{count}</a>',
-                url=url,
-                count=count,
-            )
-        return '—'
+        return count if count > 0 else '—'
 
 
 @admin.register(Employee)
@@ -88,7 +84,7 @@ class EmployeeAdmin(admin.ModelAdmin):
         """Получение ссылки на редактирование отдела"""
 
         if obj.department:
-            url = f'/admin/staff/department/{obj.department.id}/change/'
+            url = reverse('admin:staff_department_change', args=[obj.department.id])
             return format_html('<a href="{}">{}</a>', url, obj.department.name)
         return '-'
 
