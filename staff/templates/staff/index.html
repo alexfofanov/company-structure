@@ -154,7 +154,7 @@
             container.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin me-2"></i>Загрузка данных...</div>';
 
             // 4. AJAX запрос (FETCH)
-            fetch(`/staff/api/node-data/?id=${deptId}`, {
+            fetch(`/staff/api/department-data/${deptId}/`, {
                 method: 'GET',
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest', // Хороший тон для AJAX

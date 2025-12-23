@@ -5,5 +5,9 @@ from .api import DepartmentDataAPIView
 
 urlpatterns = [
     path('', views.index, name='index'),
-    path('api/node-data/', DepartmentDataAPIView.as_view(), name='api-node-data'),
+    path(
+        'api/department-data/<int:pk>/',
+        DepartmentDataAPIView.as_view(),
+        name='api-department-data',
+    ),
 ]

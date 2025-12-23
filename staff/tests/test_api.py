@@ -5,17 +5,17 @@ from rest_framework import status
 
 @pytest.mark.django_db
 def test_anonymous_access_denied(api_client, structure):
-    url = reverse('api-node-data')
-    response = api_client.get(url, {'id': structure['root'].id})
+    url = reverse('api-department-data', kwargs={'pk': structure['root'].id})
+    response = api_client.get(url)
     assert response.status_code == status.HTTP_403_FORBIDDEN
 
 
 @pytest.mark.django_db
 def test_authorized_access_success(api_client, user, structure):
     api_client.force_authenticate(user=user)
-    url = reverse('api-node-data')
+    url = reverse('api-department-data', kwargs={'pk': structure['root'].id})
 
-    response = api_client.get(url, {'id': structure['root'].id})
+    response = api_client.get(url)
     assert response.status_code == status.HTTP_200_OK
 
     data = response.json()
@@ -31,6 +31,6 @@ def test_authorized_access_success(api_client, user, structure):
 @pytest.mark.django_db
 def test_404_on_invalid_id(api_client, user):
     api_client.force_authenticate(user=user)
-    url = reverse('api-node-data')
-    response = api_client.get(url, {'id': 99999})
-    assert response.status_code == 404
+    url = reverse('api-department-data', kwargs={'pk': 99999})
+    response = api_client.get(url)
+    assert response.status_code == status.HTTP_404_NOT_FOUND

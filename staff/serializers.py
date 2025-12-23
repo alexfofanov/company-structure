@@ -19,3 +19,19 @@ class DepartmentSerializer(serializers.ModelSerializer):
 
     def get_has_children(self, obj: Department) -> bool:
         return not obj.is_leaf_node()
+
+
+class DepartmentDetailsSerializer(serializers.ModelSerializer):
+    children = serializers.SerializerMethodField()
+    employees = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Department
+        fields = ['children', 'employees']
+
+    def get_children(self, obj: Department):
+        children = obj.get_children()
+        return DepartmentSerializer(children, many=True).data
+
+    def get_employees(self, obj: Department):
+        return EmployeeSerializer(obj.employees.all(), many=True).data
